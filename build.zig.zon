@@ -1,0 +1,20 @@
+.{
+    .name = .radfly,
+    .version = "0.1.0",
+    .fingerprint = 0x4bf569611121c808,
+    .minimum_zig_version = "0.14.0",
+    .dependencies = .{
+        .httpz = .{
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#0ff1094c1ab01a0248fd01e5a09753895830569c",
+            .hash = "httpz-0.0.0-PNVzrAy3BgBz6c_AJaU-xNYvmiyv-Nk25qZC1Gnbr8UI",
+        },
+    },
+    .paths = .{
+        "build.zig",
+        "build.zig.zon",
+        "src",
+        "LICENSE",
+        "CHANGELOG.md",
+        "README.md",
+    },
+}

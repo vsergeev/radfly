@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script>
+const ws = new WebSocket("ws://localhost:8000/ws");
+ws.binaryType = 'arraybuffer';
+
+let pending = {};
+
+ws.addEventListener("message", (event) => {
+  if (event.data instanceof ArrayBuffer) {
+    console.log("binary from server:", event.data);
+  } else {
+    const message = JSON.parse(event.data);
+    console.log("text from server:", message);
+
+    if (message.id && pending[message.id]) {
+      pending[message.id](message);
+      delete pending[message.id];
+    }
+  }
+});
+
+function call(request) {
+  console.log("request", request);
+
+  (new Promise((resolve) => {
+    ws.send(JSON.stringify(request));
+    pending[request.id] = resolve;
+  })).then((value) => console.log("response", value));
+}
+
+function scan() {
+  call({'id': 123, 'method': 'scan', 'params': [[{'start': 4750e3, 'stop': 4995e3, 'step': 5e3}, {'start': 5900e3, 'stop': 6200e3, 'step': 5e3}]]});
+}
+
+function tune(frequency) {
+  call({'id': 124, 'method': 'tune', 'params': [frequency]});
+}
+
+function setAudioBandwidth(bandwidth) {
+  call({'id': 125, 'method': 'setAudioBandwidth', 'params': [bandwidth]});
+}
+
+function setAudioAGCMode(mode) {
+  call({'id': 126, 'method': 'setAudioAGCMode', 'params': [mode]});
+}
+</script>
