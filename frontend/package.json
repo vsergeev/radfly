@@ -12,9 +12,13 @@
     "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json"
   },
   "devDependencies": {
+    "@iconify-json/bx": "^1.2.2",
+    "@iconify-json/bxs": "^1.2.2",
+    "@iconify/tailwind4": "^1.0.6",
     "@sveltejs/vite-plugin-svelte": "^5.0.3",
     "@tailwindcss/vite": "^4.0.0",
     "@tsconfig/svelte": "^5.0.4",
+    "@types/audioworklet": "^0.0.72",
     "eslint": "^9.23.0",
     "eslint-config-prettier": "^10.1.1",
     "eslint-plugin-svelte": "^3.5.1",
