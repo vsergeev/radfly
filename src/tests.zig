@@ -398,10 +398,10 @@ test "rpc: setAudioAgcMode()" {
         defer status.deinit();
         try std.testing.expectEqualStrings("status", status.value.event);
         try std.testing.expect(status.value.payload.audio_agc_mode == .preset);
-        try std.testing.expectEqualStrings("Slow", status.value.payload.audio_agc_mode.preset);
+        try std.testing.expectEqual(.Slow, status.value.payload.audio_agc_mode.preset);
     }
 
-    try tester.writeJson(SetAudioAgcModeRequestMessage{ .id = 789, .method = "setAudioAgcMode", .params = .{.{ .preset = "Fast" }} });
+    try tester.writeJson(SetAudioAgcModeRequestMessage{ .id = 789, .method = "setAudioAgcMode", .params = .{.{ .preset = .Fast }} });
 
     {
         const response = try tester.readJson(HttpHandler.WebsocketHandler.ResponseMessage, 500);
@@ -416,7 +416,7 @@ test "rpc: setAudioAgcMode()" {
         defer status.deinit();
         try std.testing.expectEqualStrings("status", status.value.event);
         try std.testing.expect(status.value.payload.audio_agc_mode == .preset);
-        try std.testing.expectEqualStrings("Fast", status.value.payload.audio_agc_mode.preset);
+        try std.testing.expectEqual(.Fast, status.value.payload.audio_agc_mode.preset);
     }
 
     try tester.writeJson(SetAudioAgcModeRequestMessage{ .id = 790, .method = "setAudioAgcMode", .params = .{.{ .custom = 1.5 }} });

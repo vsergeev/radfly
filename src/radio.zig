@@ -1,6 +1,8 @@
 const std = @import("std");
 const builtin = @import("builtin");
 
+const radio = @import("radio");
+
 ////////////////////////////////////////////////////////////////////////////////
 // Radio API Types
 ////////////////////////////////////////////////////////////////////////////////
@@ -32,10 +34,7 @@ pub const FrequencySweep = struct {
     step: f64,
 };
 
-pub const AudioAgcMode = union(enum) {
-    preset: []const u8,
-    custom: f32,
-};
+pub const AudioAgcMode = radio.blocks.AGCBlock(f32).Mode;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Mock Radio Implementation
@@ -61,7 +60,7 @@ pub const MockRadioImpl = struct {
     } = undefined,
 
     pub fn init(allocator: std.mem.Allocator, _: RadioConfiguration) !MockRadioImpl {
-        return .{ .allocator = allocator, .frequency = 5000e3, .audio_bandwidth = 5e3, .audio_agc_mode = .{ .preset = "Slow" } };
+        return .{ .allocator = allocator, .frequency = 5000e3, .audio_bandwidth = 5e3, .audio_agc_mode = .{ .preset = .Slow } };
     }
 
     pub fn deinit(_: *MockRadioImpl) void {}
