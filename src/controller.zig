@@ -14,13 +14,17 @@ pub fn RadioController(ListenerType: type) type {
 
         radio: union(enum) {
             mock: MockRadioImpl,
+            zigradio: ZigRadioImpl,
         },
         listeners_mutex: std.Thread.Mutex = .{},
         listeners: std.AutoHashMap(*ListenerType, void) = undefined,
 
         pub fn init(allocator: std.mem.Allocator, config: RadioConfiguration) !Self {
             return .{
-                .radio = .{ .mock = try MockRadioImpl.init(allocator, config) },
+                .radio = switch (config.source) {
+                    .mock => .{ .mock = try MockRadioImpl.init(allocator, config) },
+                    else => .{ .zigradio = try ZigRadioImpl.init(allocator, config) },
+                },
                 .listeners = std.AutoHashMap(*ListenerType, void).init(allocator),
             };
         }
