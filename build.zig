@@ -4,6 +4,7 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const radio = b.dependency("radio", .{});
     const httpz = b.dependency("httpz", .{
         .target = target,
         .optimize = optimize,
@@ -15,13 +16,16 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    exe.root_module.addImport("radio", radio.module("radio"));
     exe.root_module.addImport("httpz", httpz.module("httpz"));
+    exe.linkLibC();
 
     b.installArtifact(exe);
 
     const exe_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/tests.zig"),
     });
+    exe_unit_tests.root_module.addImport("radio", radio.module("radio"));
     exe_unit_tests.root_module.addImport("httpz", httpz.module("httpz"));
     const run_exe_unit_tests = b.addRunArtifact(exe_unit_tests);
 

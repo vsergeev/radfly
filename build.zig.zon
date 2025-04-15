@@ -8,6 +8,10 @@
             .url = "git+https://github.com/karlseguin/http.zig?ref=master#0ff1094c1ab01a0248fd01e5a09753895830569c",
             .hash = "httpz-0.0.0-PNVzrAy3BgBz6c_AJaU-xNYvmiyv-Nk25qZC1Gnbr8UI",
         },
+        .radio = .{
+            .url = "git+https://github.com/vsergeev/zigradio?ref=v0.7.0#816b45d3ff8dd4af5c0b84d7c6721a86d0f48b21",
+            .hash = "radio-0.7.0-6HoyhO18DQDw86CctZOsPLo6L8oALuaZcGusGj6Rhhy1",
+        },
     },
     .paths = .{
         "build.zig",
