@@ -5,6 +5,8 @@ const websocket = httpz.websocket;
 const RadioController = @import("controller.zig").RadioController;
 const HttpHandler = @import("handler.zig").HttpHandler;
 
+const FRONTEND_ASSETS = @import("build_options").FRONTEND_ASSETS;
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 
@@ -15,7 +17,13 @@ pub fn main() !void {
     defer server.deinit();
 
     var router = try server.router(.{});
-    router.get("/", index, .{});
+    inline for (FRONTEND_ASSETS) |path| {
+        router.get(path, staticFileHandler(path, &.{}), .{});
+    }
+    router.get("/", staticFileHandler("/index.html", &.{
+        .{ "Cross-Origin-Opener-Policy", "same-origin" },
+        .{ "Cross-Origin-Embedder-Policy", "require-corp" },
+    }), .{});
     router.get("/ws", ws, .{});
 
     server_ref = &server;
@@ -40,9 +48,15 @@ pub fn main() !void {
 // Routes
 ////////////////////////////////////////////////////////////////////////////////
 
-fn index(_: HttpHandler, _: *httpz.Request, res: *httpz.Response) !void {
-    res.content_type = .HTML;
-    res.body = @embedFile("index.html");
+fn staticFileHandler(path: []const u8, headers: []const struct { []const u8, []const u8 }) fn (handler: HttpHandler, req: *httpz.Request, res: *httpz.Response) anyerror!void {
+    const gen = struct {
+        fn handler(_: HttpHandler, _: *httpz.Request, res: *httpz.Response) !void {
+            res.content_type = comptime httpz.ContentType.forFile(path);
+            res.body = @embedFile("dist" ++ path);
+            inline for (headers) |header| res.headers.add(header[0], header[1]);
+        }
+    };
+    return gen.handler;
 }
 
 fn ws(handler: HttpHandler, req: *httpz.Request, res: *httpz.Response) !void {

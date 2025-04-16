@@ -1,6 +1,23 @@
 const std = @import("std");
 
-pub fn build(b: *std.Build) void {
+pub fn discoverFrontendAssets(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList([]const u8) {
+    var frontend_assets = std.ArrayList([]const u8).init(allocator);
+
+    var frontend_assets_dir = try std.fs.cwd().openDir(path, .{ .iterate = true });
+    defer frontend_assets_dir.close();
+
+    var frontend_assets_it = frontend_assets_dir.iterate();
+    while (try frontend_assets_it.next()) |entry| {
+        switch (entry.kind) {
+            .file => try frontend_assets.append(try std.mem.concat(allocator, u8, &[_][]const u8{ "/assets/", entry.name })),
+            else => {},
+        }
+    }
+
+    return frontend_assets;
+}
+
+pub fn build(b: *std.Build) !void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
@@ -10,6 +27,11 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    const frontend_assets = try discoverFrontendAssets(b.allocator, b.path("src/dist/assets").getPath(b));
+
+    const build_options = b.addOptions();
+    build_options.addOption([]const []const u8, "FRONTEND_ASSETS", frontend_assets.items);
+
     const exe = b.addExecutable(.{
         .name = "radfly",
         .root_source_file = b.path("src/main.zig"),
@@ -18,6 +40,7 @@ pub fn build(b: *std.Build) void {
     });
     exe.root_module.addImport("radio", radio.module("radio"));
     exe.root_module.addImport("httpz", httpz.module("httpz"));
+    exe.root_module.addOptions("build_options", build_options);
     exe.linkLibC();
 
     b.installArtifact(exe);
