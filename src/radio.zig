@@ -396,6 +396,7 @@ pub const ZigRadioImpl = struct {
         }
 
         try self._tune(self.frequency);
+        try self.flowgraph.top.call(&self.flowgraph.af_gain.block, radio.blocks.AGCBlock(f32).reset, .{});
     }
 
     pub fn scan(self: *ZigRadioImpl, sweeps: []const FrequencySweep) !void {
@@ -416,6 +417,7 @@ pub const ZigRadioImpl = struct {
         defer self.mutex.unlock();
 
         try self._tune(frequency);
+        try self.flowgraph.top.call(&self.flowgraph.af_gain.block, radio.blocks.AGCBlock(f32).reset, .{});
 
         self.frequency = frequency;
     }
