@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) !void {
 
     const build_options = b.addOptions();
     build_options.addOption([]const []const u8, "FRONTEND_ASSETS", frontend_assets.items);
-    build_options.addOption([]const u8, "VERSION", "0.1.0");
+    build_options.addOption([]const u8, "VERSION", "0.2.0");
 
     const exe = b.addExecutable(.{
         .name = "radfly",
