@@ -110,6 +110,8 @@ pub fn main() !void {
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--source")) {
             config.radio.source = try parseArgument(@TypeOf(config.radio.source), args.next(), "--source");
+        } else if (std.mem.eql(u8, arg, "--device-index")) {
+            config.radio.device_index = try parseArgument(usize, args.next(), "--device-index");
         } else if (std.mem.eql(u8, arg, "--bias-tee")) {
             config.radio.bias_tee = try parseArgument(bool, args.next(), "--bias-tee");
         } else if (std.mem.eql(u8, arg, "--tune-offset")) {

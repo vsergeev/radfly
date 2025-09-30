@@ -16,6 +16,7 @@ pub const RadioConfiguration = struct {
     bias_tee: bool = false,
     tune_offset: ?f32 = -50e3,
     initial_frequency: f64 = 5000e3,
+    device_index: usize = 0,
     debug: bool = false,
 };
 
@@ -244,7 +245,7 @@ pub const ZigRadioImpl = struct {
             .flowgraph = .{
                 .top = radio.Flowgraph.init(allocator, .{ .debug = config.debug }),
                 .source = switch (config.source) {
-                    .rtlsdr => .{ .rtlsdr = radio.blocks.RtlSdrSource.init(config.initial_frequency + (config.tune_offset orelse 0), 960e3, .{ .debug = config.debug, .bias_tee = config.bias_tee }) },
+                    .rtlsdr => .{ .rtlsdr = radio.blocks.RtlSdrSource.init(config.initial_frequency + (config.tune_offset orelse 0), 960e3, .{ .debug = config.debug, .bias_tee = config.bias_tee, .device_index = config.device_index }) },
                     .airspyhf => .{ .airspyhf = radio.blocks.AirspyHFSource.init(config.initial_frequency + (config.tune_offset orelse 0), 384e3, .{ .debug = config.debug }) },
                     else => return error.UnsupportedSource,
                 },
