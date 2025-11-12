@@ -19,7 +19,7 @@ pub const HttpHandler = struct {
         pub const Context = struct { controller: *RadioController(WebsocketHandler) };
 
         pub fn init(conn: *websocket.Conn, ctx: *const Context) !WebsocketHandler {
-            std.log.info("New connection from {}", .{conn.address});
+            std.log.info("New connection from {f}", .{conn.address});
             return .{ .conn = conn, .controller = ctx.controller };
         }
 
@@ -28,7 +28,7 @@ pub const HttpHandler = struct {
         }
 
         pub fn close(self: *WebsocketHandler) void {
-            std.log.info("Closed connection from {}", .{self.conn.address});
+            std.log.info("Closed connection from {f}", .{self.conn.address});
             self.controller.removeListener(self);
         }
 
@@ -101,8 +101,9 @@ pub const HttpHandler = struct {
             };
 
             var wb = self.conn.writeBuffer(allocator, .text);
-            try std.json.stringify(response, .{}, wb.writer());
-            try wb.flush();
+            defer wb.deinit();
+            try std.json.Stringify.value(response, .{}, &wb.interface);
+            try wb.send();
         }
 
         ////////////////////////////////////////////////////////////////////////
@@ -119,18 +120,18 @@ pub const HttpHandler = struct {
                 try self.conn.writeBin(event.audio.samples);
             } else {
                 var buf: [8192]u8 = undefined;
-                var fbs = std.io.fixedBufferStream(&buf);
+                var writer = std.io.Writer.fixed(&buf);
 
                 switch (event) {
                     inline else => |value, tag| {
-                        try std.json.stringify(struct {
+                        try std.json.Stringify.value(struct {
                             event: []const u8,
                             payload: std.meta.TagPayload(RadioEvent, tag),
-                        }{ .event = @tagName(event), .payload = value }, .{}, fbs.writer());
+                        }{ .event = @tagName(event), .payload = value }, .{}, &writer);
                     },
                 }
 
-                try self.conn.writeText(fbs.getWritten());
+                try self.conn.writeText(writer.buffered());
             }
         }
     };

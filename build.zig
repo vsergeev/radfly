@@ -1,7 +1,7 @@
 const std = @import("std");
 
-pub fn discoverFrontendAssets(allocator: std.mem.Allocator, path: []const u8) !std.ArrayList([]const u8) {
-    var frontend_assets = std.ArrayList([]const u8).init(allocator);
+pub fn discoverFrontendAssets(allocator: std.mem.Allocator, path: []const u8) !std.array_list.Managed([]const u8) {
+    var frontend_assets = std.array_list.Managed([]const u8).init(allocator);
 
     var frontend_assets_dir = try std.fs.cwd().openDir(path, .{ .iterate = true });
     defer frontend_assets_dir.close();
@@ -35,9 +35,11 @@ pub fn build(b: *std.Build) !void {
 
     const exe = b.addExecutable(.{
         .name = "radfly",
-        .root_source_file = b.path("src/main.zig"),
-        .target = target,
-        .optimize = optimize,
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/main.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     exe.root_module.addImport("radio", radio.module("radio"));
     exe.root_module.addImport("httpz", httpz.module("httpz"));
@@ -47,7 +49,11 @@ pub fn build(b: *std.Build) !void {
     b.installArtifact(exe);
 
     const exe_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/tests.zig"),
+        .root_module = b.createModule(.{
+            .root_source_file = b.path("src/tests.zig"),
+            .target = target,
+            .optimize = optimize,
+        }),
     });
     exe_unit_tests.root_module.addImport("radio", radio.module("radio"));
     exe_unit_tests.root_module.addImport("httpz", httpz.module("httpz"));

@@ -88,7 +88,7 @@ pub const MockRadioImpl = struct {
                 while (true) {
                     if (s.stop_event.isSet()) break;
 
-                    std.time.sleep(50 * std.time.ns_per_ms);
+                    std.Thread.sleep(50 * std.time.ns_per_ms);
 
                     s.mutex.lock();
                     defer s.mutex.unlock();
@@ -141,7 +141,7 @@ pub const MockRadioImpl = struct {
                     break :outer;
                 }
 
-                std.time.sleep(100 * std.time.ns_per_ms);
+                std.Thread.sleep(100 * std.time.ns_per_ms);
                 self.event_callback.function(self.event_callback.context, .{ .scan = .{ .frequency = freq, .power_dbfs = -60 + 55 * prng.random().float(f32), .timestamp = @intCast(std.time.milliTimestamp()) } });
             }
         }
@@ -367,7 +367,7 @@ pub const ZigRadioImpl = struct {
                 try self._tune(frequency);
 
                 // Wait
-                std.time.sleep(50 * std.time.ns_per_ms);
+                std.Thread.sleep(50 * std.time.ns_per_ms);
 
                 // Flush power meter
                 try self.flowgraph.top.call(&self.flowgraph.power_meter.block, radio.blocks.PowerMeterBlock(std.math.Complex(f32)).reset, .{});

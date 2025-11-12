@@ -2,15 +2,15 @@
     .name = .radfly,
     .version = "0.2.0",
     .fingerprint = 0x4bf569611121c808,
-    .minimum_zig_version = "0.14.0",
+    .minimum_zig_version = "0.15.0",
     .dependencies = .{
         .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig?ref=master#1cdee92ce99ed2cac1aa28018a35c46776ef85a5",
-            .hash = "httpz-0.0.0-PNVzrGu3BgAIRvYiWsbvVbzUyZg1-rzoT71hVSeLCHz7",
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#a4477b1dbdc5b820fd4ad301797ca6399f7eb6e4",
+            .hash = "httpz-0.0.0-PNVzrBgtBwCVkSJyophIX6WHwDR0r8XhBGQr96Kk-1El",
         },
         .radio = .{
-            .url = "git+https://github.com/vsergeev/zigradio?ref=v0.8.0#baeebc2d5b4d96d181e9bf33b805a39fe1dec2cb",
-            .hash = "radio-0.8.0-6HoyhHQgDwDkHHeZnZQhmEORJFsHWE59_3_CvWaM6hMR",
+            .url = "git+https://github.com/vsergeev/zigradio?ref=v0.9.0#ed08ddf64501f470fb7bb2fbd03ef4be9e506aea",
+            .hash = "radio-0.9.0-6HoyhFIkDwBKOn0FpltN76D8B3nJ3Roz_IgjF07nS6zI",
         },
     },
     .paths = .{

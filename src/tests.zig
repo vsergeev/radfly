@@ -71,9 +71,9 @@ const Tester = struct {
 
     pub fn writeJson(self: *Tester, value: anytype) !void {
         var buf: [8192]u8 = undefined;
-        var fbs = std.io.fixedBufferStream(&buf);
-        try std.json.stringify(value, .{}, fbs.writer());
-        try self.writeText(fbs.getWritten());
+        var writer = std.io.Writer.fixed(&buf);
+        try std.json.Stringify.value(value, .{}, &writer);
+        try self.writeText(writer.buffered());
     }
 
     pub fn read(self: *Tester, message_type: websocket.MessageType, timeout_ms: usize) ![]const u8 {

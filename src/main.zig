@@ -14,7 +14,8 @@ const FRONTEND_ASSETS = @import("build_options").FRONTEND_ASSETS;
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn printUsage() !void {
-    return std.io.getStdErr().writeAll(
+    var stderr_writer = std.fs.File.stderr().writer(&.{});
+    return stderr_writer.interface.writeAll(
         \\Usage: radfly [options]
         \\
         \\Radio Configuration
@@ -125,7 +126,8 @@ pub fn main() !void {
         } else if (std.mem.eql(u8, arg, "--help")) {
             return printUsage();
         } else if (std.mem.eql(u8, arg, "--version")) {
-            return std.io.getStdOut().writeAll(VERSION ++ "\n");
+            var stdout_writer = std.fs.File.stdout().writer(&.{});
+            return stdout_writer.interface.writeAll(VERSION ++ "\n");
         } else {
             std.log.err("Unknown argument \"{s}\"\n", .{arg});
             try printUsage();
@@ -156,12 +158,12 @@ pub fn main() !void {
     server_ref = &server;
     std.posix.sigaction(std.posix.SIG.INT, &.{
         .handler = .{ .handler = shutdown },
-        .mask = std.posix.empty_sigset,
+        .mask = std.posix.sigemptyset(),
         .flags = 0,
     }, null);
     std.posix.sigaction(std.posix.SIG.TERM, &.{
         .handler = .{ .handler = shutdown },
-        .mask = std.posix.empty_sigset,
+        .mask = std.posix.sigemptyset(),
         .flags = 0,
     }, null);
 
@@ -201,7 +203,7 @@ fn ws(handler: HttpHandler, req: *httpz.Request, res: *httpz.Response) !void {
 
 var server_ref: ?*httpz.Server(HttpHandler) = null;
 
-fn shutdown(_: c_int) callconv(.C) void {
+fn shutdown(_: c_int) callconv(.c) void {
     if (server_ref) |server| {
         server_ref = null;
         server.stop();
