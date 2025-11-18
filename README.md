@@ -1,7 +1,7 @@
 # radfly
 
 radfly is a self-hosted, SDR-based listening server for AM medium wave and
-short-wave radio stations with a simple web frontend. radfly is built on [ZigRadio](http://zigradio.org/)
+short-wave radio stations with a simple web frontend. radfly is built on [ZigRadio](https://zigradio.org/)
 and [http.zig](https://github.com/karlseguin/http.zig), and currently supports rtl-sdr and AirSpy HF+ SDRs.
 
 The web frontend streams audio, supports scanning, bookmarks, and configuring
@@ -82,7 +82,7 @@ Miscellaneous
 
 ## Design
 
-The [ZigRadio](http://zigradio.org/) flowgraph consists of audio demodulation and power measurement
+The [ZigRadio](https://zigradio.org/) flowgraph consists of audio demodulation and power measurement
 signal chains that feed into their respective `ApplicationSink`. Audio and
 power samples are consumed by an application thread and pushed to active
 clients via WebSockets. An RPC protocol over WebSockets allows clients to scan,
