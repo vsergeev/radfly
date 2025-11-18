@@ -17,7 +17,7 @@ radfly requires Zig version 0.15.
 ```
 $ git clone https://github.com/vsergeev/radfly.git
 $ cd radfly
-$ zig build
+$ zig build -Doptimize=ReleaseFast
 ```
 
 Install optional (but recommended) acceleration libraries:
@@ -65,6 +65,7 @@ Usage: radfly [options]
 
 Radio Configuration
   --source <mock,rtlsdr,airspyhf>     SDR Source (default mock)
+  --device-index <index>              Device index (default 0)
   --bias-tee <true/false>             Bias tee (default false)
   --tune-offset <value in KHz>        Tune offset (default 50 KHz)
   --initial-frequency <value in KHz>  Initial frequency (default 5000 KHz)
