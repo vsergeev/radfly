@@ -420,7 +420,7 @@
       </div>
     </div>
   </div>
-  <div class="my-3 text-center"><A href="https://github.com/vsergeev/radfly" target="_blank">radfly</A> - v0.2.0</div>
+  <div class="my-3 text-center"><A href="https://github.com/vsergeev/radfly" target="_blank">radfly</A> - v0.3.0</div>
   <ErrorModal bind:this={errorModal} />
   <InputModal bind:this={inputModal} />
   <ScanOptionsModal bind:this={scanOptionsModal} />
