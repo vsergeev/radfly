@@ -17,6 +17,7 @@ pub const RadioConfiguration = struct {
     tune_offset: ?f32 = -50e3,
     initial_frequency: f64 = 5000e3,
     device_index: usize = 0,
+    device_serial: ?[]const u8 = null,
     debug: bool = false,
 };
 
@@ -245,8 +246,8 @@ pub const ZigRadioImpl = struct {
             .flowgraph = .{
                 .top = radio.Flowgraph.init(allocator, .{ .debug = config.debug }),
                 .source = switch (config.source) {
-                    .rtlsdr => .{ .rtlsdr = radio.blocks.RtlSdrSource.init(config.initial_frequency + (config.tune_offset orelse 0), 960e3, .{ .debug = config.debug, .bias_tee = config.bias_tee, .device_index = config.device_index }) },
-                    .airspyhf => .{ .airspyhf = radio.blocks.AirspyHFSource.init(config.initial_frequency + (config.tune_offset orelse 0), 384e3, .{ .debug = config.debug }) },
+                    .rtlsdr => .{ .rtlsdr = radio.blocks.RtlSdrSource.init(config.initial_frequency + (config.tune_offset orelse 0), 960e3, .{ .debug = config.debug, .bias_tee = config.bias_tee, .device_index = config.device_index, .device_serial = config.device_serial }) },
+                    .airspyhf => .{ .airspyhf = radio.blocks.AirspyHFSource.init(config.initial_frequency + (config.tune_offset orelse 0), 384e3, .{ .debug = config.debug, .device_serial = if (config.device_serial) |device_serial| try std.fmt.parseInt(u64, device_serial, 0) else null }) },
                     else => return error.UnsupportedSource,
                 },
                 .tuner = radio.blocks.TunerBlock.init(config.tune_offset orelse 0, 10e3, switch (config.source) {

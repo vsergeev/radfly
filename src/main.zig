@@ -21,6 +21,7 @@ pub fn printUsage() !void {
         \\Radio Configuration
         \\  --source <mock,rtlsdr,airspyhf>     SDR Source (default mock)
         \\  --device-index <index>              Device index (default 0)
+        \\  --device-serial <string>            Device serial (default none)
         \\  --bias-tee <true/false>             Bias tee (default false)
         \\  --tune-offset <value in KHz>        Tune offset (default 50 KHz)
         \\  --initial-frequency <value in KHz>  Initial frequency (default 5000 KHz)
@@ -114,6 +115,8 @@ pub fn main() !void {
             config.radio.source = try parseArgument(@TypeOf(config.radio.source), args.next(), "--source");
         } else if (std.mem.eql(u8, arg, "--device-index")) {
             config.radio.device_index = try parseArgument(usize, args.next(), "--device-index");
+        } else if (std.mem.eql(u8, arg, "--device-serial")) {
+            config.radio.device_serial = try parseArgument([]const u8, args.next(), "--device-serial");
         } else if (std.mem.eql(u8, arg, "--bias-tee")) {
             config.radio.bias_tee = try parseArgument(bool, args.next(), "--bias-tee");
         } else if (std.mem.eql(u8, arg, "--tune-offset")) {
