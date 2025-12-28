@@ -46,7 +46,7 @@ pub const FrequencySweep = struct {
     step: f64,
 };
 
-pub const AudioAgcMode = radio.blocks.AGCBlock(f32).Mode;
+pub const AudioAgcMode = radio.blocks.AGCBlock(std.math.Complex(f32)).Mode;
 
 ////////////////////////////////////////////////////////////////////////////////
 // Mock Radio Implementation
@@ -213,10 +213,10 @@ pub const ZigRadioImpl = struct {
             airspyhf: radio.blocks.AirspyHFSource,
         },
         tuner: radio.blocks.TunerBlock,
+        agc: radio.blocks.AGCBlock(std.math.Complex(f32)),
         am_demod: radio.blocks.AMEnvelopeDemodulatorBlock,
         power_filter: radio.blocks.LowpassFilterBlock(std.math.Complex(f32), 32),
         power_meter: radio.blocks.PowerMeterBlock(std.math.Complex(f32)),
-        af_gain: radio.blocks.AGCBlock(f32),
         af_downsampler: radio.blocks.DownsamplerBlock(f32),
         audio_sink: radio.blocks.ApplicationSink(f32),
         power_sink: radio.blocks.ApplicationSink(f32),
@@ -255,10 +255,10 @@ pub const ZigRadioImpl = struct {
                     .airspyhf => 4,
                     else => unreachable,
                 }),
+                .agc = radio.blocks.AGCBlock(std.math.Complex(f32)).init(.{ .preset = .Medium }, .{ .target_dbfs = -10, .threshold_dbfs = -60 }),
                 .am_demod = radio.blocks.AMEnvelopeDemodulatorBlock.init(.{ .bandwidth = 5e3 }),
                 .power_filter = radio.blocks.LowpassFilterBlock(std.math.Complex(f32), 32).init(0.5e3, .{}),
                 .power_meter = radio.blocks.PowerMeterBlock(std.math.Complex(f32)).init(50, .{}),
-                .af_gain = radio.blocks.AGCBlock(f32).init(.{ .preset = .Medium }, .{}),
                 .af_downsampler = radio.blocks.DownsamplerBlock(f32).init(2),
                 .audio_sink = radio.blocks.ApplicationSink(f32).init(),
                 .power_sink = radio.blocks.ApplicationSink(f32).init(),
@@ -279,13 +279,14 @@ pub const ZigRadioImpl = struct {
         try self.flowgraph.top.connect(switch (self.flowgraph.source) {
             inline else => |*source| &source.block,
         }, &self.flowgraph.tuner.block);
-        try self.flowgraph.top.connect(&self.flowgraph.tuner.block, &self.flowgraph.am_demod.block);
-        try self.flowgraph.top.connect(&self.flowgraph.am_demod.block, &self.flowgraph.af_gain.block);
-        try self.flowgraph.top.connect(&self.flowgraph.af_gain.block, &self.flowgraph.af_downsampler.block);
-        try self.flowgraph.top.connect(&self.flowgraph.af_downsampler.block, &self.flowgraph.audio_sink.block);
         try self.flowgraph.top.connect(&self.flowgraph.tuner.block, &self.flowgraph.power_filter.block);
         try self.flowgraph.top.connect(&self.flowgraph.power_filter.block, &self.flowgraph.power_meter.block);
         try self.flowgraph.top.connect(&self.flowgraph.power_meter.block, &self.flowgraph.power_sink.block);
+
+        try self.flowgraph.top.connect(&self.flowgraph.tuner.block, &self.flowgraph.agc.block);
+        try self.flowgraph.top.connect(&self.flowgraph.agc.block, &self.flowgraph.am_demod.block);
+        try self.flowgraph.top.connect(&self.flowgraph.am_demod.block, &self.flowgraph.af_downsampler.block);
+        try self.flowgraph.top.connect(&self.flowgraph.af_downsampler.block, &self.flowgraph.audio_sink.block);
 
         // Start flowgraph
         try self.flowgraph.top.start();
@@ -398,7 +399,7 @@ pub const ZigRadioImpl = struct {
         }
 
         try self._tune(self.frequency);
-        try self.flowgraph.top.call(&self.flowgraph.af_gain.block, radio.blocks.AGCBlock(f32).reset, .{});
+        try self.flowgraph.top.call(&self.flowgraph.agc.block, radio.blocks.AGCBlock(std.math.Complex(f32)).reset, .{});
     }
 
     pub fn scan(self: *ZigRadioImpl, sweeps: []const FrequencySweep) !void {
@@ -419,7 +420,7 @@ pub const ZigRadioImpl = struct {
         defer self.mutex.unlock();
 
         try self._tune(frequency);
-        try self.flowgraph.top.call(&self.flowgraph.af_gain.block, radio.blocks.AGCBlock(f32).reset, .{});
+        try self.flowgraph.top.call(&self.flowgraph.agc.block, radio.blocks.AGCBlock(std.math.Complex(f32)).reset, .{});
 
         self.frequency = frequency;
     }
@@ -437,7 +438,7 @@ pub const ZigRadioImpl = struct {
         self.mutex.lock();
         defer self.mutex.unlock();
 
-        try self.flowgraph.top.call(&self.flowgraph.af_gain.block, radio.blocks.AGCBlock(f32).setMode, .{mode});
+        try self.flowgraph.top.call(&self.flowgraph.agc.block, radio.blocks.AGCBlock(std.math.Complex(f32)).setMode, .{mode});
 
         self.audio_agc_mode = mode;
     }
