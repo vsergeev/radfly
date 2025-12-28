@@ -9,8 +9,8 @@
             .hash = "httpz-0.0.0-PNVzrBgtBwCVkSJyophIX6WHwDR0r8XhBGQr96Kk-1El",
         },
         .radio = .{
-            .url = "git+https://github.com/vsergeev/zigradio?ref=v0.9.0#ed08ddf64501f470fb7bb2fbd03ef4be9e506aea",
-            .hash = "radio-0.9.0-6HoyhFIkDwBKOn0FpltN76D8B3nJ3Roz_IgjF07nS6zI",
+            .url = "git+https://github.com/vsergeev/zigradio?ref=v0.10.0#16ac2e1fcd1e17fe342dd859a7c9d74e61723b48",
+            .hash = "radio-0.10.0-6HoyhJTRDwDartuG2gfpImLgJP77s8XYq0VMkGqviHZU",
         },
     },
     .paths = .{
