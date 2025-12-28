@@ -66,6 +66,7 @@ Usage: radfly [options]
 Radio Configuration
   --source <mock,rtlsdr,airspyhf>     SDR Source (default mock)
   --device-index <index>              Device index (default 0)
+  --device-serial <string>            Device serial (default none)
   --bias-tee <true/false>             Bias tee (default false)
   --tune-offset <value in KHz>        Tune offset (default 50 KHz)
   --initial-frequency <value in KHz>  Initial frequency (default 5000 KHz)
@@ -96,9 +97,9 @@ flowchart LR
     G --> H[PowerMeterBlock]
     H --> I[ApplicationSink]
     end
-    B --> C[AMEnvelopeDemodulator]
+    B --> C[AGCBlock]
     subgraph s1 [Audio]
-    C --> D[AGCBlock]
+    C --> D[AMEnvelopeDemodulator]
     D --> E[DownsamplerBlock]
     E --> F[ApplicationSink]
     end
