@@ -1,3 +1,9 @@
+* v0.4.0 - 01/09/2026
+    * Bump ZigRadio version to v0.10.0.
+    * Bump http.zig version to `1c0ec37`.
+    * Add device serial configuration option.
+    * Move AGC before AM demodulation to reduce excess boosting of quiet audio.
+
 * v0.3.0 - 11/18/2025
     * Migrate to Zig 0.15.
     * Bump ZigRadio version to v0.9.0.
