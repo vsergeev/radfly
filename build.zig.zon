@@ -5,8 +5,8 @@
     .minimum_zig_version = "0.15.0",
     .dependencies = .{
         .httpz = .{
-            .url = "git+https://github.com/karlseguin/http.zig?ref=master#a4477b1dbdc5b820fd4ad301797ca6399f7eb6e4",
-            .hash = "httpz-0.0.0-PNVzrBgtBwCVkSJyophIX6WHwDR0r8XhBGQr96Kk-1El",
+            .url = "git+https://github.com/karlseguin/http.zig?ref=master#1c0ec3751c53e276d5e0c42b6d5481e72d9d1971",
+            .hash = "httpz-0.0.0-PNVzrEktBwCzPoiua-S8LAYo2tILqczm3tSpneEzLQ9L",
         },
         .radio = .{
             .url = "git+https://github.com/vsergeev/zigradio?ref=v0.10.0#16ac2e1fcd1e17fe342dd859a7c9d74e61723b48",
