@@ -92,7 +92,12 @@ pub const HttpHandler = struct {
             return ResponseMessage{ .id = request.id, .success = false, .message = "Unknown method" };
         }
 
-        pub fn clientMessage(self: *WebsocketHandler, allocator: std.mem.Allocator, data: []const u8) !void {
+        pub fn clientMessage(self: *WebsocketHandler, _: std.mem.Allocator, data: []const u8) !void {
+            // Temporary workaround for websocket.zig issue #112
+            var arena = std.heap.ArenaAllocator.init(std.heap.smp_allocator);
+            defer arena.deinit();
+            const allocator = arena.allocator();
+
             const response = blk: {
                 const request = std.json.parseFromSlice(RequestMessage, allocator, data, .{}) catch {
                     break :blk ResponseMessage{ .id = -1, .success = false, .message = "Invalid request" };
