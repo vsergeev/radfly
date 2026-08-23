@@ -1,3 +1,8 @@
+* v0.5.0 - 08/22/2026
+    * Migrate to Zig 0.16.
+    * Bump ZigRadio version to v0.11.0.
+    * Bump http.zig version to `dce2cb0`.
+
 * v0.4.0 - 01/09/2026
     * Bump ZigRadio version to v0.10.0.
     * Bump http.zig version to `1c0ec37`.
