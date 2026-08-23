@@ -54,25 +54,26 @@ pub const AudioAgcMode = radio.blocks.AGCBlock(std.math.Complex(f32)).Mode;
 
 pub const MockRadioImpl = struct {
     allocator: std.mem.Allocator,
+    io: std.Io,
 
     // Radio state
-    mutex: std.Thread.Mutex = .{},
+    mutex: std.Io.Mutex = .init,
     frequency: f64,
     audio_bandwidth: f32,
     audio_agc_mode: AudioAgcMode,
     scan_sweeps: ?[]const FrequencySweep = null,
-    scan_abort_event: std.Thread.ResetEvent = .{},
+    scan_abort_event: std.Io.Event = .unset,
 
     // Thread state
     thread: std.Thread = undefined,
-    stop_event: std.Thread.ResetEvent = .{},
+    stop_event: std.Io.Event = .unset,
     event_callback: struct {
         context: *anyopaque,
         function: *const fn (context: *anyopaque, event: RadioEvent) void,
     } = undefined,
 
-    pub fn init(allocator: std.mem.Allocator, _: RadioConfiguration) !MockRadioImpl {
-        return .{ .allocator = allocator, .frequency = 5000e3, .audio_bandwidth = 5e3, .audio_agc_mode = .{ .preset = .Slow } };
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, _: RadioConfiguration) !MockRadioImpl {
+        return .{ .allocator = allocator, .io = io, .frequency = 5000e3, .audio_bandwidth = 5e3, .audio_agc_mode = .{ .preset = .Slow } };
     }
 
     pub fn deinit(_: *MockRadioImpl) void {}
@@ -80,9 +81,9 @@ pub const MockRadioImpl = struct {
     pub fn start(self: *MockRadioImpl, context: *anyopaque, callback: *const fn (context: *anyopaque, event: RadioEvent) void) !void {
         const Runner = struct {
             fn run(s: *MockRadioImpl) !void {
-                var prng = std.Random.DefaultPrng.init(@intCast(std.time.microTimestamp()));
+                var prng = std.Random.DefaultPrng.init(@intCast(std.Io.Clock.real.now(s.io).toMicroseconds()));
 
-                var tic: i64 = std.time.microTimestamp();
+                var tic: i64 = std.Io.Clock.awake.now(s.io).toMicroseconds();
                 var last_status_timestamp: i64 = 0;
                 var phase: f32 = 0;
                 var samples: [4800]f32 = undefined;
@@ -90,10 +91,10 @@ pub const MockRadioImpl = struct {
                 while (true) {
                     if (s.stop_event.isSet()) break;
 
-                    std.Thread.sleep(50 * std.time.ns_per_ms);
+                    try s.io.sleep(.fromMilliseconds(50), .awake);
 
-                    s.mutex.lock();
-                    defer s.mutex.unlock();
+                    s.mutex.lockUncancelable(s.io);
+                    defer s.mutex.unlock(s.io);
 
                     if (s.scan_sweeps) |sweeps| {
                         try s._scan(sweeps);
@@ -102,7 +103,7 @@ pub const MockRadioImpl = struct {
                     }
 
                     // Emit audio samples
-                    const toc = std.time.microTimestamp();
+                    const toc = std.Io.Clock.awake.now(s.io).toMicroseconds();
                     const count = @min(@as(usize, @intCast(@divFloor(((toc - tic) * 48000), 1000000))), samples.len);
                     const omega = 2 * std.math.pi * ((@as(f32, @floatCast(s.frequency)) / 10000) / 48000);
                     for (samples[0..count]) |*sample| {
@@ -110,7 +111,7 @@ pub const MockRadioImpl = struct {
                         phase = @mod(phase + omega, 2 * std.math.pi);
                     }
                     s.event_callback.function(s.event_callback.context, .{ .audio = .{ .samples = std.mem.sliceAsBytes(samples[0..count]) } });
-                    tic = std.time.microTimestamp();
+                    tic = std.Io.Clock.awake.now(s.io).toMicroseconds();
 
                     // Emit status once a second
                     if (toc - last_status_timestamp > 1 * std.time.us_per_s) {
@@ -127,13 +128,13 @@ pub const MockRadioImpl = struct {
     }
 
     pub fn stop(self: *MockRadioImpl) !void {
-        self.scan_abort_event.set();
-        self.stop_event.set();
+        self.scan_abort_event.set(self.io);
+        self.stop_event.set(self.io);
         self.thread.join();
     }
 
     pub fn _scan(self: *MockRadioImpl, sweeps: []const FrequencySweep) !void {
-        var prng = std.Random.DefaultPrng.init(@intCast(std.time.microTimestamp()));
+        var prng = std.Random.DefaultPrng.init(@intCast(std.Io.Clock.real.now(self.io).toMicroseconds()));
 
         outer: for (sweeps) |sweep| {
             var freq = sweep.start;
@@ -143,28 +144,28 @@ pub const MockRadioImpl = struct {
                     break :outer;
                 }
 
-                std.Thread.sleep(100 * std.time.ns_per_ms);
-                self.event_callback.function(self.event_callback.context, .{ .scan = .{ .frequency = freq, .power_dbfs = -60 + 55 * prng.random().float(f32), .timestamp = @intCast(std.time.milliTimestamp()) } });
+                try self.io.sleep(.fromMilliseconds(100), .awake);
+                self.event_callback.function(self.event_callback.context, .{ .scan = .{ .frequency = freq, .power_dbfs = -60 + 55 * prng.random().float(f32), .timestamp = @intCast(std.Io.Clock.real.now(self.io).toMilliseconds()) } });
             }
         }
     }
 
     pub fn scan(self: *MockRadioImpl, sweeps: []const FrequencySweep) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         self.scan_sweeps = try self.allocator.dupe(FrequencySweep, sweeps);
     }
 
     pub fn abortScan(self: *MockRadioImpl) !void {
         if (!self.scan_abort_event.isSet()) {
-            self.scan_abort_event.set();
+            self.scan_abort_event.set(self.io);
         }
     }
 
     pub fn tune(self: *MockRadioImpl, frequency: f64) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         if (frequency < 500e3 or frequency > 31e6) {
             return error.OutOfBounds;
@@ -174,8 +175,8 @@ pub const MockRadioImpl = struct {
     }
 
     pub fn setAudioBandwidth(self: *MockRadioImpl, bandwidth: f32) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         if (bandwidth < 1e3 or bandwidth > 10e3) {
             return error.OutOfBounds;
@@ -185,8 +186,8 @@ pub const MockRadioImpl = struct {
     }
 
     pub fn setAudioAgcMode(self: *MockRadioImpl, mode: AudioAgcMode) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         self.audio_agc_mode = mode;
     }
@@ -203,6 +204,7 @@ pub const ZigRadioImpl = struct {
 
     // Config
     allocator: std.mem.Allocator,
+    io: std.Io,
     config: RadioConfiguration,
 
     // Flowgraph state
@@ -223,28 +225,29 @@ pub const ZigRadioImpl = struct {
     },
 
     // Parameter state
-    mutex: std.Thread.Mutex = .{},
+    mutex: std.Io.Mutex = .init,
     frequency: f64,
     audio_bandwidth: f32,
     audio_agc_mode: AudioAgcMode,
     power: f32,
     scan_sweeps: ?[]const FrequencySweep = null,
-    scan_abort_event: std.Thread.ResetEvent = .{},
+    scan_abort_event: std.Io.Event = .unset,
 
     // Thread state
     thread: std.Thread = undefined,
-    stop_event: std.Thread.ResetEvent = .{},
+    stop_event: std.Io.Event = .unset,
     event_callback: struct {
         context: *anyopaque,
         function: *const fn (context: *anyopaque, event: RadioEvent) void,
     } = undefined,
 
-    pub fn init(allocator: std.mem.Allocator, config: RadioConfiguration) !ZigRadioImpl {
+    pub fn init(allocator: std.mem.Allocator, io: std.Io, config: RadioConfiguration) !ZigRadioImpl {
         return .{
             .allocator = allocator,
+            .io = io,
             .config = config,
             .flowgraph = .{
-                .top = radio.Flowgraph.init(allocator, .{ .debug = config.debug }),
+                .top = radio.Flowgraph.init(allocator, io, .{ .debug = config.debug }),
                 .source = switch (config.source) {
                     .rtlsdr => .{ .rtlsdr = radio.blocks.RtlSdrSource.init(config.initial_frequency + (config.tune_offset orelse 0), 960e3, .{ .debug = config.debug, .bias_tee = config.bias_tee, .device_index = config.device_index, .device_serial = config.device_serial }) },
                     .airspyhf => .{ .airspyhf = radio.blocks.AirspyHFSource.init(config.initial_frequency + (config.tune_offset orelse 0), 384e3, .{ .debug = config.debug, .device_serial = if (config.device_serial) |device_serial| try std.fmt.parseInt(u64, device_serial, 0) else null }) },
@@ -293,7 +296,7 @@ pub const ZigRadioImpl = struct {
 
         const Runner = struct {
             fn run(s: *ZigRadioImpl) !void {
-                var tic: i64 = std.time.microTimestamp();
+                var tic: i64 = std.Io.Clock.awake.now(s.io).toMicroseconds();
 
                 while (true) {
                     if (s.stop_event.isSet()) break;
@@ -304,8 +307,8 @@ pub const ZigRadioImpl = struct {
                         else => return err,
                     };
 
-                    s.mutex.lock();
-                    defer s.mutex.unlock();
+                    s.mutex.lockUncancelable(s.io);
+                    defer s.mutex.unlock(s.io);
 
                     // Handle scanning
                     if (s.scan_sweeps) |sweeps| {
@@ -328,7 +331,7 @@ pub const ZigRadioImpl = struct {
                     }
 
                     // Emit status once a second
-                    const toc = std.time.microTimestamp();
+                    const toc = std.Io.Clock.awake.now(s.io).toMicroseconds();
                     if (toc - tic > 1 * std.time.us_per_s) {
                         s.event_callback.function(s.event_callback.context, .{ .status = .{ .frequency = s.frequency, .power_dbfs = s.power, .audio_bandwidth = s.audio_bandwidth, .audio_agc_mode = s.audio_agc_mode } });
                         tic = toc;
@@ -344,8 +347,8 @@ pub const ZigRadioImpl = struct {
     }
 
     pub fn stop(self: *ZigRadioImpl) !void {
-        self.scan_abort_event.set();
-        self.stop_event.set();
+        self.scan_abort_event.set(self.io);
+        self.stop_event.set(self.io);
         self.thread.join();
         _ = try self.flowgraph.top.stop();
     }
@@ -370,7 +373,7 @@ pub const ZigRadioImpl = struct {
                 try self._tune(frequency);
 
                 // Wait
-                std.Thread.sleep(50 * std.time.ns_per_ms);
+                try self.io.sleep(.fromMilliseconds(50), .awake);
 
                 // Flush power meter
                 try self.flowgraph.top.call(&self.flowgraph.power_meter.block, radio.blocks.PowerMeterBlock(std.math.Complex(f32)).reset, .{});
@@ -391,7 +394,7 @@ pub const ZigRadioImpl = struct {
                 power_dbfs /= SCAN_POWER_SAMPLES;
 
                 // Stream scan frame
-                self.event_callback.function(self.event_callback.context, .{ .scan = .{ .frequency = frequency, .power_dbfs = power_dbfs, .timestamp = @intCast(std.time.milliTimestamp()) } });
+                self.event_callback.function(self.event_callback.context, .{ .scan = .{ .frequency = frequency, .power_dbfs = power_dbfs, .timestamp = @intCast(std.Io.Clock.real.now(self.io).toMilliseconds()) } });
 
                 // Discard audio sink samples
                 try self.flowgraph.audio_sink.discard();
@@ -403,21 +406,21 @@ pub const ZigRadioImpl = struct {
     }
 
     pub fn scan(self: *ZigRadioImpl, sweeps: []const FrequencySweep) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         self.scan_sweeps = try self.allocator.dupe(FrequencySweep, sweeps);
     }
 
     pub fn abortScan(self: *ZigRadioImpl) !void {
         if (!self.scan_abort_event.isSet()) {
-            self.scan_abort_event.set();
+            self.scan_abort_event.set(self.io);
         }
     }
 
     pub fn tune(self: *ZigRadioImpl, frequency: f64) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         try self._tune(frequency);
         try self.flowgraph.top.call(&self.flowgraph.agc.block, radio.blocks.AGCBlock(std.math.Complex(f32)).reset, .{});
@@ -426,8 +429,8 @@ pub const ZigRadioImpl = struct {
     }
 
     pub fn setAudioBandwidth(self: *ZigRadioImpl, bandwidth: f32) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         try self.flowgraph.top.call(&self.flowgraph.am_demod.block, radio.blocks.AMEnvelopeDemodulatorBlock.setBandwidth, .{bandwidth});
 
@@ -435,8 +438,8 @@ pub const ZigRadioImpl = struct {
     }
 
     pub fn setAudioAgcMode(self: *ZigRadioImpl, mode: AudioAgcMode) !void {
-        self.mutex.lock();
-        defer self.mutex.unlock();
+        self.mutex.lockUncancelable(self.io);
+        defer self.mutex.unlock(self.io);
 
         try self.flowgraph.top.call(&self.flowgraph.agc.block, radio.blocks.AGCBlock(std.math.Complex(f32)).setMode, .{mode});
 

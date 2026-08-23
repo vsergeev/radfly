@@ -2,7 +2,7 @@
     .name = .radfly,
     .version = "0.4.0",
     .fingerprint = 0x4bf569611121c808,
-    .minimum_zig_version = "0.15.0",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .httpz = .{
             .url = "git+https://github.com/karlseguin/http.zig?ref=master#dce2cb07f1cd9beca6146869e1eec48025cf9f6f",

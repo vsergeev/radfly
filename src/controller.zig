@@ -12,18 +12,20 @@ pub fn RadioController(ListenerType: type) type {
     return struct {
         const Self = @This();
 
+        io: std.Io,
         radio: union(enum) {
             mock: MockRadioImpl,
             zigradio: ZigRadioImpl,
         },
-        listeners_mutex: std.Thread.Mutex = .{},
+        listeners_mutex: std.Io.Mutex = .init,
         listeners: std.AutoHashMap(*ListenerType, void) = undefined,
 
-        pub fn init(allocator: std.mem.Allocator, config: RadioConfiguration) !Self {
+        pub fn init(allocator: std.mem.Allocator, io: std.Io, config: RadioConfiguration) !Self {
             return .{
+                .io = io,
                 .radio = switch (config.source) {
-                    .mock => .{ .mock = try MockRadioImpl.init(allocator, config) },
-                    else => .{ .zigradio = try ZigRadioImpl.init(allocator, config) },
+                    .mock => .{ .mock = try MockRadioImpl.init(allocator, io, config) },
+                    else => .{ .zigradio = try ZigRadioImpl.init(allocator, io, config) },
                 },
                 .listeners = std.AutoHashMap(*ListenerType, void).init(allocator),
             };
@@ -55,15 +57,15 @@ pub fn RadioController(ListenerType: type) type {
         }
 
         pub fn addListener(self: *Self, listener: *ListenerType) !void {
-            self.listeners_mutex.lock();
-            defer self.listeners_mutex.unlock();
+            self.listeners_mutex.lockUncancelable(self.io);
+            defer self.listeners_mutex.unlock(self.io);
 
             try self.listeners.put(listener, {});
         }
 
         pub fn removeListener(self: *Self, listener: *ListenerType) void {
-            self.listeners_mutex.lock();
-            defer self.listeners_mutex.unlock();
+            self.listeners_mutex.lockUncancelable(self.io);
+            defer self.listeners_mutex.unlock(self.io);
 
             _ = self.listeners.remove(listener);
         }
@@ -99,8 +101,8 @@ pub fn RadioController(ListenerType: type) type {
         }
 
         pub fn onRadioEvent(self: *Self, event: RadioEvent) void {
-            self.listeners_mutex.lock();
-            defer self.listeners_mutex.unlock();
+            self.listeners_mutex.lockUncancelable(self.io);
+            defer self.listeners_mutex.unlock(self.io);
 
             var listener_it = self.listeners.keyIterator();
             while (listener_it.next()) |listener| {

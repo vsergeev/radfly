@@ -12,7 +12,7 @@ and similar single-board computers.
 
 ## Building
 
-radfly requires Zig version 0.15.
+radfly requires Zig version 0.16.
 
 ```
 $ git clone https://github.com/vsergeev/radfly.git

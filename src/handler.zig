@@ -120,13 +120,13 @@ pub const HttpHandler = struct {
                 try self.conn.writeBin(event.audio.samples);
             } else {
                 var buf: [8192]u8 = undefined;
-                var writer = std.io.Writer.fixed(&buf);
+                var writer = std.Io.Writer.fixed(&buf);
 
                 switch (event) {
                     inline else => |value, tag| {
                         try std.json.Stringify.value(struct {
                             event: []const u8,
-                            payload: std.meta.TagPayload(RadioEvent, tag),
+                            payload: @FieldType(RadioEvent, @tagName(tag)),
                         }{ .event = @tagName(event), .payload = value }, .{}, &writer);
                     },
                 }

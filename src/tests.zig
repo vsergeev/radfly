@@ -17,7 +17,7 @@ const Tester = struct {
 
     pub fn init() !Tester {
         return .{
-            .controller = try RadioController(HttpHandler.WebsocketHandler).init(std.testing.allocator, .{}),
+            .controller = try RadioController(HttpHandler.WebsocketHandler).init(std.testing.allocator, std.testing.io, .{}),
             .server = null,
             .client = null,
         };
@@ -41,12 +41,12 @@ const Tester = struct {
         try self.controller.start();
 
         // Create and start server
-        self.server = try httpz.Server(HttpHandler).init(std.testing.allocator, .{ .address = "127.0.0.1", .port = 9001 }, HttpHandler.init(&self.controller));
+        self.server = try httpz.Server(HttpHandler).init(std.testing.io, std.testing.allocator, .{ .address = .localhost(9001) }, HttpHandler.init(&self.controller));
         (try self.server.?.router(.{})).get("/ws", ws, .{});
         self.server_thread = try std.Thread.spawn(.{}, httpz.Server(HttpHandler).listen, .{&self.server.?});
 
         // Create and start client
-        self.client = try websocket.Client.init(std.testing.allocator, .{ .host = "127.0.0.1", .port = 9001 });
+        self.client = try websocket.Client.init(std.testing.io, std.testing.allocator, .{ .host = "127.0.0.1", .port = 9001 });
         try self.client.?.handshake("/ws", .{ .timeout_ms = 1000, .headers = "Host: 127.0.0.1:9001" });
         try self.client.?.readTimeout(500);
     }
@@ -71,16 +71,16 @@ const Tester = struct {
 
     pub fn writeJson(self: *Tester, value: anytype) !void {
         var buf: [8192]u8 = undefined;
-        var writer = std.io.Writer.fixed(&buf);
+        var writer = std.Io.Writer.fixed(&buf);
         try std.json.Stringify.value(value, .{}, &writer);
         try self.writeText(writer.buffered());
     }
 
     pub fn read(self: *Tester, message_type: websocket.MessageType, timeout_ms: usize) ![]const u8 {
-        const tic = std.time.milliTimestamp();
+        const tic = std.Io.Clock.awake.now(std.testing.io).toMilliseconds();
 
         while (true) {
-            if (std.time.milliTimestamp() - tic > timeout_ms) return error.Timeout;
+            if (std.Io.Clock.awake.now(std.testing.io).toMilliseconds() - tic > timeout_ms) return error.Timeout;
 
             const message = (try self.client.?.read()) orelse continue;
             defer self.client.?.done(message);
@@ -100,10 +100,10 @@ const Tester = struct {
     }
 
     pub fn readJson(self: *Tester, T: type, timeout_ms: usize) !std.json.Parsed(T) {
-        const tic = std.time.milliTimestamp();
+        const tic = std.Io.Clock.awake.now(std.testing.io).toMilliseconds();
 
         while (true) {
-            if (std.time.milliTimestamp() - tic > timeout_ms) return error.Timeout;
+            if (std.Io.Clock.awake.now(std.testing.io).toMilliseconds() - tic > timeout_ms) return error.Timeout;
 
             const data = try self.readText(timeout_ms);
             defer std.testing.allocator.free(data);
@@ -121,12 +121,12 @@ const RadioEvent = @import("radio.zig").RadioEvent;
 const FrequencySweep = @import("radio.zig").FrequencySweep;
 const AudioAgcMode = @import("radio.zig").AudioAgcMode;
 
-const StatusEventMessage = struct { event: []const u8, payload: std.meta.TagPayload(RadioEvent, RadioEvent.status) };
-const ScanEventMessage = struct { event: []const u8, payload: std.meta.TagPayload(RadioEvent, RadioEvent.scan) };
+const StatusEventMessage = struct { event: []const u8, payload: @FieldType(RadioEvent, @tagName(RadioEvent.status)) };
+const ScanEventMessage = struct { event: []const u8, payload: @FieldType(RadioEvent, @tagName(RadioEvent.scan)) };
 
 const ScanRequestMessage = struct { id: isize, method: []const u8, params: struct { []const FrequencySweep } };
 const TuneRequestMessage = struct { id: isize, method: []const u8, params: struct { f64 } };
-const AbortScanRequestMessage = struct { id: isize, method: []const u8, params: struct { void } };
+const AbortScanRequestMessage = struct { id: isize, method: []const u8, params: @Tuple(&.{}) };
 const SetAudioBandwidthRequestMessage = struct { id: isize, method: []const u8, params: struct { f32 } };
 const SetAudioAgcModeRequestMessage = struct { id: isize, method: []const u8, params: struct { AudioAgcMode } };
 

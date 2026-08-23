@@ -13,8 +13,8 @@ const FRONTEND_ASSETS = @import("build_options").FRONTEND_ASSETS;
 // Usage and Argument Parsing
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn printUsage() !void {
-    var stderr_writer = std.fs.File.stderr().writer(&.{});
+pub fn printUsage(io: std.Io) !void {
+    var stderr_writer = std.Io.File.stderr().writer(io, &.{});
     return stderr_writer.interface.writeAll(
         \\Usage: radfly [options]
         \\
@@ -37,7 +37,7 @@ pub fn printUsage() !void {
     ++ "\n");
 }
 
-pub fn parseArgument(comptime T: anytype, arg_: ?([:0]const u8), context: []const u8) !T {
+pub fn parseArgument(comptime T: anytype, arg_: ?([:0]const u8), context: []const u8, io: std.Io) !T {
     if (arg_) |arg| {
         return @as(anyerror!T, blk: {
             if (T == []const u8) {
@@ -61,12 +61,12 @@ pub fn parseArgument(comptime T: anytype, arg_: ?([:0]const u8), context: []cons
             }
         }) catch {
             std.log.err("Invalid value for argument \"{s}\"\n", .{context});
-            try printUsage();
+            try printUsage(io);
             std.process.exit(1);
         };
     } else {
         std.log.err("Missing value for argument \"{s}\"\n", .{context});
-        try printUsage();
+        try printUsage(io);
         std.process.exit(1);
     }
 }
@@ -98,45 +98,42 @@ pub const std_options = std.Options{
 // Entry Point
 ////////////////////////////////////////////////////////////////////////////////
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}){};
-
+pub fn main(init: std.process.Init) !void {
     var config: Configuration = .{};
 
     // Handle Arguments
 
-    var args = try std.process.argsWithAllocator(gpa.allocator());
-    defer args.deinit();
+    var args = std.process.Args.Iterator.init(init.minimal.args);
 
     _ = args.skip();
 
     while (args.next()) |arg| {
         if (std.mem.eql(u8, arg, "--source")) {
-            config.radio.source = try parseArgument(@TypeOf(config.radio.source), args.next(), "--source");
+            config.radio.source = try parseArgument(@TypeOf(config.radio.source), args.next(), "--source", init.io);
         } else if (std.mem.eql(u8, arg, "--device-index")) {
-            config.radio.device_index = try parseArgument(usize, args.next(), "--device-index");
+            config.radio.device_index = try parseArgument(usize, args.next(), "--device-index", init.io);
         } else if (std.mem.eql(u8, arg, "--device-serial")) {
-            config.radio.device_serial = try parseArgument([]const u8, args.next(), "--device-serial");
+            config.radio.device_serial = try parseArgument([]const u8, args.next(), "--device-serial", init.io);
         } else if (std.mem.eql(u8, arg, "--bias-tee")) {
-            config.radio.bias_tee = try parseArgument(bool, args.next(), "--bias-tee");
+            config.radio.bias_tee = try parseArgument(bool, args.next(), "--bias-tee", init.io);
         } else if (std.mem.eql(u8, arg, "--tune-offset")) {
-            config.radio.tune_offset = try parseArgument(f32, args.next(), "--tune-offset");
+            config.radio.tune_offset = try parseArgument(f32, args.next(), "--tune-offset", init.io);
         } else if (std.mem.eql(u8, arg, "--initial-frequency")) {
-            config.radio.initial_frequency = try parseArgument(f64, args.next(), "--initial-frequency");
+            config.radio.initial_frequency = try parseArgument(f64, args.next(), "--initial-frequency", init.io);
         } else if (std.mem.eql(u8, arg, "--http-port")) {
-            config.server.http_port = try parseArgument(u16, args.next(), "--http-port");
+            config.server.http_port = try parseArgument(u16, args.next(), "--http-port", init.io);
         } else if (std.mem.eql(u8, arg, "--http-address")) {
-            config.server.http_address = try parseArgument([]const u8, args.next(), "--http-address");
+            config.server.http_address = try parseArgument([]const u8, args.next(), "--http-address", init.io);
         } else if (std.mem.eql(u8, arg, "--debug")) {
             config.radio.debug = true;
         } else if (std.mem.eql(u8, arg, "--help")) {
-            return printUsage();
+            return printUsage(init.io);
         } else if (std.mem.eql(u8, arg, "--version")) {
-            var stdout_writer = std.fs.File.stdout().writer(&.{});
+            var stdout_writer = std.Io.File.stdout().writer(init.io, &.{});
             return stdout_writer.interface.writeAll(VERSION ++ "\n");
         } else {
             std.log.err("Unknown argument \"{s}\"\n", .{arg});
-            try printUsage();
+            try printUsage(init.io);
             std.process.exit(1);
         }
     }
@@ -152,10 +149,10 @@ pub fn main() !void {
 
     // Initialization
 
-    var controller = try RadioController(HttpHandler.WebsocketHandler).init(gpa.allocator(), config.radio);
+    var controller = try RadioController(HttpHandler.WebsocketHandler).init(init.gpa, init.io, config.radio);
     defer controller.deinit();
 
-    var server = try httpz.Server(HttpHandler).init(gpa.allocator(), .{ .address = config.server.http_address, .port = config.server.http_port }, HttpHandler.init(&controller));
+    var server = try httpz.Server(HttpHandler).init(init.io, init.gpa, .{ .address = .{ .ip = try std.Io.net.IpAddress.parse(config.server.http_address, config.server.http_port) } }, HttpHandler.init(&controller));
     defer server.deinit();
 
     var router = try server.router(.{});
@@ -216,7 +213,7 @@ fn ws(handler: HttpHandler, req: *httpz.Request, res: *httpz.Response) !void {
 
 var server_ref: ?*httpz.Server(HttpHandler) = null;
 
-fn shutdown(_: c_int) callconv(.c) void {
+fn shutdown(_: std.posix.SIG) callconv(.c) void {
     if (server_ref) |server| {
         server_ref = null;
         server.stop();
